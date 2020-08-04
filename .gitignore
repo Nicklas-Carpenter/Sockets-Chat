@@ -1,7 +1,8 @@
 # Don't commit object files
-**/*.o
+objs/**
+
 # Don't commit any executables
-chat_client
-chat_server
-# Don't commit IDE or text editor configuration directories or file
-.vscode
+bin/**
+
+# Don't commit logs
+**/*.log

@@ -9,5 +9,10 @@
 #define MAX_MSG_SIZE 140 // The size of the largest messages that can sent
 #define MAX_UNAME_SIZE 20 // The maximum size a username is allowed to be
 #define EXIT_CMD "~quit\n" // The command that initiates disconnect and quits
+#define HOST 0
+#define CLIENT 1
+#define PORT_MIN 1024
+#define PORT_MAX 65535
+#define IPV4_REGEX "((([01]?[0-9]?[0-9])|(2([0-4][0-9]|5[0-5])))\.){3}(([01]?[0-9]?[0-9])|(2([0-4][0-9]|5[0-5])))"
 
 #endif

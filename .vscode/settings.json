@@ -1,0 +1,3 @@
+{
+    "clang.cflags": ["-I{workspaceRoot}/include"]
+}

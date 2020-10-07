@@ -4,16 +4,16 @@ that allows instant messaging communication between two users over a TCP/IP.
 
 ## Table of Contents
 * [sockets_chat](#sockets_chat)
-* [Table of Contents](#Table\ of\ Contents)
+* [Table of Contents](#table-of-contents)
 * [Installation](#Installation)
   * [Requirements](#Requirements)
   * [Building](#Building)
 * [Usage](#Usage)
-  * [Running in host mode](#Running\ in\ host\ mode)
-  * [Running in client mode](#Running\ in\ client\ mode)
+  * [Running in host mode](#running-in-host-mode)
+  * [Running in client mode](#running-in-client-mode)
   * [Messaging](#Messaging)
   * [Testing](#Testing)
-* [Known Issues](#Known\ Issues)
+* [Known Issues](#known-issues)
 * [License](#License)
 
 ## Installation

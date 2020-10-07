@@ -29,6 +29,8 @@
 #include <getopt.h>
 #include <regex.h>
 #include <chat.h>
+#include <term_windows.h>
+#include <limits.h>
 
 // TODO Improve option handling (e.g. add a USAGE statement)
 // TODO Can we daemonize a server
@@ -36,6 +38,8 @@
 //      --daemonize; -d : Host server runs in the background as a daemon?
 // TODO Look into security considerations
 // TODO Add color and formatting options
+// TODO Verify license stuff
+// TODO Improve commments and documenation
 
 int listener; // The socket that handles incoming connections
 int remote; // The socket connection to the client
@@ -53,32 +57,31 @@ pthread_t receiver; // Thread responsible for receiving messages from the client
 pthread_t sender; // Thread responsible for sending messages to the client
 pthread_t handler; // Thread responsible for handling signals
 
-void catch_signal(const int signo);
+struct sigaction sig_action, def_action;
+sigset_t mask;
+
+void quit();
+void sig_handler(const int signo);
+void install_sig_handler();
 void wait_for_client_connection(const int port, const char *address);
+void wait_for_closed_connection();
+void setup_ui();
 void connect_to_host(const char *service, const char *address);
 void *send_messages(void* empty);
 void *receive_messages(void *empty);
 
 int main(int argc, char **argv) {
-    struct sigaction sig_handler, def_action;
-    sigset_t mask;
     int port;
     char mode;
     char *address, *service;
 
-    // Set up initial signal handling
-    sigemptyset(&mask);
+    // Install the signal handler for the intialization process. Once we
+    // connect to the client and spawn the send and receive threads, we switch
+    // to another method of signal handling that works better with
+    // multi-threading
+    install_sig_handler();
 
-    // Set the signal mask. Used to establish this thread as the signal handler
-    // when the sender and receiver threads are started
-    sigaddset(&mask, SIGINT);
-    sigaddset(&mask, SIGUSR1);
-    sigaddset(&mask, SIGUSR2);
-
-    sig_handler.sa_handler = catch_signal;
-    sig_handler.sa_mask = mask;
-    sig_handler.sa_flags = 0;
-    sigaction(SIGINT, &sig_handler, &def_action);
+    atexit(&quit);
 
     // Obtain commandline options
     regmatch_t matches[2];
@@ -89,6 +92,7 @@ int main(int argc, char **argv) {
     opterr = 0;
     mode = CLIENT;
 
+    // Extract the arguments and perform validation where appropriate
     while((opt = getopt(argc, argv, arg_str)) > 0) {
         switch(opt) {
             case 'h':
@@ -116,7 +120,8 @@ int main(int argc, char **argv) {
                     return 3;
                 }
 
-                // Safe cast since we already checked if 
+                // Safe cast since we already checked if num_conv was within
+                // our predetermined bounds
                 port = (int)num_conv;      
                 port_not_specified = false;
 
@@ -146,7 +151,7 @@ int main(int argc, char **argv) {
         return 5;
     }
 
-    if (address_not_specified) {
+    if (address_not_specified && mode != HOST) {
         fputs("Error: Missing address\n", stderr);
         return 6;
     }
@@ -160,6 +165,9 @@ int main(int argc, char **argv) {
     fgets(username, MAX_UNAME_SIZE, stdin);
     *(username + strlen(username) - 1) = '\0';
 
+    // The convention is that when a client and host connect, the host waits
+    // for the client to prompt. Based on whether we are the client or the
+    // host, determine if we should prompt or wait
     if (mode == HOST) {
         wait_for_client_connection(port, address);
     } else {
@@ -171,49 +179,58 @@ int main(int argc, char **argv) {
     sigaction(SIGINT, &def_action, NULL);
     pthread_sigmask(SIG_SETMASK, &mask, NULL);
 
-    // Spin up the recption thread
+    // Initiate the threads that will take care of sending and receiving
+    // messages.
     pthread_create(&receiver, NULL, receive_messages, NULL);
     pthread_create(&sender, NULL, send_messages, NULL);
 
-    int signo;
-    sigwait(&mask, &signo);
-    connection_established = false;
-
-    switch(signo) {
-        case SIGINT:
-            send(remote, EXIT_CMD, strlen(EXIT_CMD), NO_FLAGS);
-        case SIGUSR1:
-            printf("\nTerminated connection with %s (%s)\n", r_username, remote_ip);
-            break;
-        case SIGUSR2:
-        default: 
-            printf("\nTerminated connection by %s (%s)\n", r_username, remote_ip);
-    }
-
-    pthread_join(sender, NULL);
-    pthread_join(receiver, NULL);
-
-    close(remote);
-
-    free(username);
-    free(r_username);
-    free(remote_ip);
+    // The main thread waits for the connection to close, then performs
+    // the proper cleanup
+    wait_for_closed_connection();
 
     return 0;
 }
 
-void catch_signal(const int signo) {
-    if (username != 0) {
-        free(username);
-    }
-
-    if (r_username != 0) {
-        free(r_username);
-    }
-
+// Signal handler used to handle SIGINT (i.e. user early-exiting the program)
+// before the additional threads have been spawned
+void sig_handler(const int signo) {
     exit(-1);
 }
 
+// Verifies which resources have been allocated and frees them
+void quit() {
+    // Depending on when the user quit, we may have allocate memory for the
+    // following variables. Verify before freeing
+    if (username != 0) {
+        free(username);
+    }
+    if (r_username != 0) {
+        free(r_username);
+    }
+    if (remote_ip != 0) {
+        free(remote_ip);
+    }
+}
+
+// Installs the initial signal handler
+void install_sig_handler() {
+    // Set up initial signal handling
+    sigemptyset(&mask);
+
+    // Set the signal mask. Used to establish this thread as the signal handler
+    // when the sender and receiver threads are started
+    sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGUSR1);
+    sigaddset(&mask, SIGUSR2);
+
+    sig_action.sa_handler = sig_handler;
+    sig_action.sa_mask = mask;
+    sig_action.sa_flags = 0;
+    sigaction(SIGINT, &sig_action, &def_action);
+}
+
+// Listens for incoming connnections and establishes a connection with the
+// incoming guest
 void wait_for_client_connection(const int port, const char *address) {
     // Open a socket to listen to incoming connections
     listener = socket(AF_INET, SOCK_STREAM, DEFAULT_PROTOCOL);
@@ -222,9 +239,11 @@ void wait_for_client_connection(const int port, const char *address) {
         exit(-2);
     }
 
-    // Allow us to reuse this address. Useful if we quit and immdiately 
-    // rerun this program
+    // Allows use to reuse this address. This addresses addresses an occurence
+    // where if the user runs the program, exits, then runs it again before the
+    // address is freed, they get a complaint stating the address is in use
     int reuse_addr = 1;
+
     int result = setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(int));
 
     if (result < 0) {
@@ -257,14 +276,19 @@ void wait_for_client_connection(const int port, const char *address) {
         (struct sockaddr*) &remote_addr, 
         (socklen_t* restrict) &remote_addr_size
     );
-    
+
+    // The remote socket was not properly initialized, so there was an error in
+    // establishing the connection
     if (remote < 0) {
         fprintf(stderr, "Failed to accept incoming connection\n");
     }
 
+    connection_established = true;
+
     // TODO Allow multiple conenctions in the future 
     close(listener);
 
+    // Obtaint the ip of the remote for information purposes
     remote_ip = malloc(INET_ADDRSTRLEN);
     inet_ntop(
         AF_INET, 
@@ -273,26 +297,56 @@ void wait_for_client_connection(const int port, const char *address) {
         INET_ADDRSTRLEN
     );
 
+    // Recieve the client's username
     int u_length;
-    connection_established = true;
     r_username = malloc(MAX_UNAME_SIZE);
-    u_length = recv(remote, (void*)r_username, MAX_UNAME_SIZE, NO_FLAGS);
+    u_length = recv(remote, r_username, MAX_UNAME_SIZE, NO_FLAGS);
     *(r_username + u_length) = '\0';
     printf("Connection established with %s (%s)\n", r_username, remote_ip);
 
-    send(remote, (void*)username, strlen(username), NO_FLAGS);
+    // Send username to the client
+    send(remote, username, strlen(username), NO_FLAGS);
 }
 
+// Wait for either the host or the client to close the connection.
+void wait_for_closed_connection() {
+    int signo;
+    sigwait(&mask, &signo);
+    connection_established = false;
+
+    switch(signo) {
+        case SIGINT:
+            send(remote, EXIT_CMD, strlen(EXIT_CMD), NO_FLAGS);
+        case SIGUSR1:
+            printf("\nTerminated connection with %s (%s)\n", r_username, remote_ip);
+            break;
+        case SIGUSR2:
+        default: 
+            printf("\nTerminated connection by %s (%s)\n", r_username, remote_ip);
+    }
+
+    pthread_join(sender, NULL);
+    pthread_join(receiver, NULL);
+
+    close(remote);
+}
+
+void setup_ui() {
+    // TODO Initialize non-canonical terminal windows here
+}
+
+// Called when connecting to the host, making this program the guest. Initiates
+// network connections and establishes communication with the host
 void connect_to_host(const char* service, const char* address) {
     struct addrinfo *remote_addr, *host, hint; 
     struct sockaddr_in *server_info;
 
-    /* Set-up hints to locat the chat_server host */
+    // Give the sockets API hints about the address we are attempting to obtain
     memset(&hint, 0, sizeof(hint));
     hint.ai_family = AF_INET;
     hint.ai_socktype = SOCK_STREAM;
 
-    /* Obtain the host address and open the connection socket */
+    // Obtain the host address and open the connection socket
     int result = getaddrinfo(address, service, &hint, &remote_addr);
 
     if (result != 0) {
@@ -360,7 +414,8 @@ void *send_messages(void* empty) {
     pfd.fd = fileno(stdin);
     pfd.events = POLLIN;
 
-    printf("<%s>: ", username); // Print the initial prompt
+    // Print the initial prompt
+    printf("<%s>: ", username);
     fflush(stdout);
     while(connection_established) {
         if (poll(&pfd, 1, 0) > 0) {

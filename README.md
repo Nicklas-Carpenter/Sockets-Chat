@@ -1,15 +1,30 @@
 # sockets_chat
-A set of simple chat programs using the C Sockets API
+sockets_chat is a terminal-based chat application, utilizing the C Sockets API,
+that allows instant messaging communication between two users over a TCP/IP.
 
-## Description
-sockets_chat is a terminal-based chat application that allows communication between two users over a network. Hypothetically, if the server is port-forwarded, the client and the server can be on different networks, although this has not been tested. sockets_chat is comprised of two programs, a client and a server. The server program starts a host on port 1024. The client attempts to connect a server on port 1024 with the address that is passed. Once a connection is established between the client and the server, the two programs act virtually identically. 
+## Table of Contents
+* [sockets_chat](#sockets_chat)
+* [Table of Contents](#Table\ of\ Contents)
+* [Installation](#Installation)
+  * [Requirements](#Requirements)
+  * [Building](#Building)
+* [Usage](#Usage)
+  * [Running in host mode](#Running\ in\ host\ mode)
+  * [Running in client mode](#Running\ in\ client\ mode)
+  * [Messaging](#Messaging)
+  * [Testing](#Testing)
+* [Known Issues](#Known\ Issues)
+* [License](#License)
 
-## Usage
-This application should work on virtually any UNIX-based system (e.g. GNU/Linux, BSD, macOS).
+## Installation
+This application should work on virtually any UNIX-based system (e.g.
+GNU/Linux, BSD, macOS).
 ### Requirements
-The user must have the following packages installed on their system:
+The user must have the following libraries and packages installed on their
+system. Most of these should be present by default in most Unix-based systems:
 * gcc
 * make
+* git (The recommended way to obtain the program)
 * Standard C libraries, including:
   * unistd.h
   * stdlib.h
@@ -23,9 +38,6 @@ The user must have the following packages installed on their system:
   * signal.h
   * pthread.h
   * poll.h
-* git (in order to use the recommended way to obtain the programs) 
-
-Most UNIX-based systems should come with all the libraries pre-installed.
 
 ### Building
 1. Open a terminal and move to a desired working directory
@@ -42,33 +54,67 @@ cd sockets_chat`
 ```bash
 make
 ```
+6. The resulting executable will be written to the `bin` directory
 
-### Running
-#### Starting the chat server
-1. To start the chat server, simply run:
+## Usage
+sockets_chat can be run in two modes: host in client. Running sockets_chat in
+host mode opens a chat server that an instance of sockets_chat running in
+client mode can connect to. Currently, messaging can only occur between one
+client and one host.
+
+### Running in host mode
+1. To run sockets_chat in host mode, execute the following in the main
+   sockets_chat directory:
 ```bash
-./chat_server
+bin/sockets_chat -h -p PORT
 ```
+Where `-h` specifies host mode and `PORT` is the network port on which to host
+the chat server
 2. You will then be prompted for username. Enter a username and hit return
 3. The server will wait for a connection from a client
 
-#### Starting the chat client
-1. To start the client run:
+### Running in client mode
+1. To run sockets_chat in client mode, execute the following in the main
+   sockets_chat directory:
 ```bash
-./chat_client [address]
+bin/sockets_chat -a ADDRESS -p PORT
 ```
-Where `[address]` is the IPv4 address of the machine running chat_server (in the form xxx.xxx.xxx.xxx)
+Where `ADDRESS` is the IPv4 address of the machine running chat_server (in the
+form \xxx.xxx.xxx.xxx\) and `PORT` is the port the server is running on
 
 2. You will be prompted for a username. Enter a username and hit return
 
-#### Messaging
-1. When the server or client discovers a connection, it will indicate this with a message that includes the username and IPv4 address of the discovered user
-2. Both the client and the server function identically when messaging. Received messages will appear on as they come in. To send a message, type out the message contents and hit return
-3. To exit, type `~quit` and hit return. The connection will terminate and both the server and the client will quit
+### Messaging
+1. When the host or client discovers a connection, it will indicate this with
+   a message that includes the username and IPv4 address of the discovered user
+2. Both the host and the client function identically when messaging.
+   Received messages will appear on as they come in. To send a message, type
+   out the message contents and hit return
+3. To exit, type `~quit` on either the host or client and hit return. The
+   connection will terminate and both the host and client processes will exit
+
+### Testing
+The simplest way to run sockets_chat is to run both the host and the client on
+the same machine. Utilizing the process described in [usage](#Usage), do the
+following:
+1. Start the host with a non-reserved port (i.e. choose a port between `1024`
+   and `65535` inclusive).
+2. In a seperate terminal, run the client with the same port and the address
+   `127.0.0.1`
 
 ## Known Issues
-* sockets_chat currently uses canonical terminal output. This leads to the following complications:
-  1. In order to guarantee the presence of the username prompt whenever the user is typing, the prompt is reprinted when a message is received. 
-  2. Since input and output share the same screen, and characters must be printed as they are typed, if a user receives a message as they are typing a message, the text of their message will appear disjoint between lines
+* sockets_chat currently uses canonical terminal output. This leads to the
+  following complications:
+  1. In order to guarantee the presence of the username prompt whenever the
+     user is typing, the prompt is reprinted when a message is received.
+  2. Since input and output share the same screen, and characters must be
+      printed as they are typed, if a user receives a message as they are
+      typing a message, the text of their message will appear disjoint between
+      lines
+* If the client is attempting to connect to a host on the same machine (e.g.
+  127.0.0.1) and the host process is not running, the client will connect to
+  itself.
 
-* When the user forcibly exits either chat_client or chat_server (e.g. by entering control-c) before a connection is established, sockets_chat will leak memory. This is becuase the main thread is reused as a signal handling thread when a conenction has been estalbished and threads for sending and receiving messages have been issues. The method used for signal handling requires the masking of signals. The signal masking does not occur until a network connection has been established (so the user can quit the program before a network connection is made), but a handler is not installed at this point, so the program has no chance to free any allocated pointers.
+## License
+This project is licensed under the GNU GPL v3.0 or greater. For more
+information see [LICENSE](LICENSE)

@@ -45,7 +45,8 @@ system. Most of these should be present by default in most Unix-based systems:
 ```bash
 git clone https://github.com/Nicklas-Carpenter/sockets_chat.git
 ```
-3. Alternatively, download the repository as a zip into the desired working directory and extract the zip file
+3. Alternatively, download the repository as a zip into the desired working 
+   directory and extract the zip file
 4. Within the working directory, move into the repository with 
 ```bash
 cd sockets_chat`
@@ -90,8 +91,9 @@ form \xxx.xxx.xxx.xxx\) and `PORT` is the port the server is running on
 2. Both the host and the client function identically when messaging.
    Received messages will appear on as they come in. To send a message, type
    out the message contents and hit return
-3. To exit, type `~quit` on either the host or client and hit return. The
-   connection will terminate and both the host and client processes will exit
+3. To exit, type `~quit` and hit return or press `control-c` on either the host 
+   or client . The connection will terminate and both the host and client 
+   processes will exit
 
 ### Testing
 The simplest way to run sockets_chat is to run both the host and the client on

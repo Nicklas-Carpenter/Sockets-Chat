@@ -29,17 +29,7 @@
 #include <getopt.h>
 #include <regex.h>
 #include <chat.h>
-#include <term_windows.h>
 #include <limits.h>
-
-// TODO Improve option handling (e.g. add a USAGE statement)
-// TODO Can we daemonize a server
-//      --executor; -e  : Server host is not a user, only a relay
-//      --daemonize; -d : Host server runs in the background as a daemon?
-// TODO Look into security considerations
-// TODO Add color and formatting options
-// TODO Verify license stuff
-// TODO Improve commments and documenation
 
 int listener; // The socket that handles incoming connections
 int remote; // The socket connection to the client
@@ -65,7 +55,6 @@ void sig_handler(const int signo);
 void install_sig_handler();
 void wait_for_client_connection(const int port, const char *address);
 void wait_for_closed_connection();
-void setup_ui();
 void connect_to_host(const char *service, const char *address);
 void *send_messages(void* empty);
 void *receive_messages(void *empty);
@@ -99,7 +88,6 @@ int main(int argc, char **argv) {
                 mode = HOST;
                 break;
             case 'p':
-                // TODO Perform validation on the received port
                 service = optarg;
                 long num_conv = strtol(service, end_ptr, 10);
 
@@ -285,7 +273,6 @@ void wait_for_client_connection(const int port, const char *address) {
 
     connection_established = true;
 
-    // TODO Allow multiple conenctions in the future 
     close(listener);
 
     // Obtaint the ip of the remote for information purposes
@@ -331,10 +318,6 @@ void wait_for_closed_connection() {
     close(remote);
 }
 
-void setup_ui() {
-    // TODO Initialize non-canonical terminal windows here
-}
-
 // Called when connecting to the host, making this program the guest. Initiates
 // network connections and establishes communication with the host
 void connect_to_host(const char* service, const char* address) {
@@ -364,9 +347,8 @@ void connect_to_host(const char* service, const char* address) {
     /*
     * Make a connection to the chat server. Currently very inefficient as it 
     * spams conenction requests until the connection succeeds instead of 
-    * waiting.
-    * 
-    * #TODO Implement exponential backoff connection retry
+    * waiting (e.g. using exponential-backoff).
+    *
     */
 
     int connection_status = CONNECTION_NOT_ESTABLISHED;

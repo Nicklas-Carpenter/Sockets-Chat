@@ -1,5 +1,5 @@
 # sockets_chat
-sockets_chat is a terminal-based chat application, utilizing the C Sockets API,
+sockets_chat is a terminal-based chat application, utilizing the Unix Sockets API,
 that allows instant messaging communication between two users over a TCP/IP.
 
 ## Table of Contents
